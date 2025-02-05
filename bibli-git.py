@@ -3,7 +3,7 @@ import jsonpickle
 while(True):
     print("1.Créer un jeu")
     print("2.Supprimer un jeu")
-    print("3.afficher la liste de toos les jeux")
+    print("3.afficher la liste de tous les jeux")
     print("4.afficher le détail d'un jeu")
     print("5.quitter")
     choice = input()
@@ -29,7 +29,7 @@ while(True):
             for index, game in enumerate(liste):
                 print (index + 1, game["name"])
             choix = int(input("choisis un jeu à supprimer : "))-1
-        if 0 <= choix < len(liste): 
+        if 1 <= choix < len(liste): 
             with open("game_library.json","r") as f:
                 retour = f.read()
                 liste = jsonpickle.decode(retour)
@@ -41,6 +41,23 @@ while(True):
         else:
             print("Choix invalide.")
             
+    if choice == "3" :
+        with open("game_library.json","r") as f:
+            retour = f.read()
+            liste = jsonpickle.decode(retour)
+            for i in liste:
+                print (i["name"])
+
+    if choice == "4":
+        with open("game_library.json","r") as f:
+            retour = f.read()
+            liste = jsonpickle.decode(retour)
+            for index, game in enumerate(liste):
+                print (index + 1, game["name"])
+            choix = int(input("afficher les détails : "))-1
+        if 0 <= choix < len(liste): 
+            print (liste[choix]["name"] + " est un jeu " + liste[choix]["tag"] +" " + liste[choix]["image"])
+
 
     if choice == "5" :
         print("adieu")
