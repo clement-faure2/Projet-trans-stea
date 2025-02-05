@@ -1,5 +1,3 @@
-print("hello world")
-
 import jsonpickle
 
 while(True):
@@ -15,14 +13,34 @@ while(True):
         name = input("name : ")
         tag = input("tag : ")
         image = input("image : ")
-        game = {"name : ": name, "tag : ": tag, "image : ": image}
+        game = {"name": name, "tag": tag, "image": image}
         with open("game_library.json","r") as f:
             retour = f.read()
-            decoded_retour = jsonpickle.decode(retour)
-            liste.append(decoded_retour)
+            liste = jsonpickle.decode(retour)
+            liste.append(game)
         encoded_game = jsonpickle.encode(liste)
         with open("game_library.json","w") as f:
             f.write(encoded_game)
+        print(game["name"] + "à été ajouté avec succès")
+    if choice == "2" :
+        with open("game_library.json","r") as f:
+            retour = f.read()
+            liste = jsonpickle.decode(retour)
+            for index, game in enumerate(liste):
+                print (index + 1, game["name"])
+            choix = int(input("choisis un jeu à supprimer : "))-1
+        if 0 <= choix < len(liste): 
+            with open("game_library.json","r") as f:
+                retour = f.read()
+                liste = jsonpickle.decode(retour)
+                liste.remove(liste[choix])
+            encoded_game = jsonpickle.encode(liste)
+            with open("game_library.json","w") as f:
+                f.write(encoded_game)
+            print(game["name"] + "à été supprimé avec succès")
+        else:
+            print("Choix invalide.")
+            
 
     if choice == "5" :
         print("adieu")
