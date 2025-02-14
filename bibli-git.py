@@ -124,6 +124,19 @@ class Jeux_B:
         else:
             db.insert_game("game_library", self)      
         print(f"{self.name} à été ajouter avec succès")      
+        if STORAGE_MODE == "json":
+            if not os.path.exists("game_library.json"):
+                with open("game_library.json", "w") as f:
+                    f.write(jsonpickle.encode([]))
+            with open("game_library.json","r") as f:
+                retour = f.read()
+                liste = jsonpickle.decode(retour)
+                liste.append(self)            
+                with open("game_library.json","w") as f:
+                    f.write(jsonpickle.encode(liste))
+        else:
+            db.insert_game("game_library", self)      
+        print(f"{self.name} à été ajouter avec succès")      
     @staticmethod    
     def supprimer_jeux_B():
         if STORAGE_MODE == "json":
@@ -154,6 +167,15 @@ class Jeux_B:
                 print("Choix invalide.")
     @staticmethod
     def afficher_jeux_B():
+        if STORAGE_MODE == "json":
+            with open("game_library.json", "r") as f:
+                liste = jsonpickle.decode(f.read())
+                for game in liste:
+                    print(game.name)
+        else:
+            for game in db.get_all_games("game_library"):
+                print(game)
+
         if STORAGE_MODE == "json":
             with open("game_library.json", "r") as f:
                 liste = jsonpickle.decode(f.read())
@@ -205,6 +227,20 @@ class Jeux_M(Jeux_B):
         else:
             db.insert_magasin_game(self)
         print(f"{self.name} à été ajouter avec succès")
+    def creer_jeux_M(self):
+        if STORAGE_MODE == "json":
+            if not os.path.exists("magasin.json"):
+                with open("magasin.json", "w") as f:
+                    f.write(jsonpickle.encode([]))         
+            with open("magasin.json","r") as f:
+                retour = f.read()
+                liste = jsonpickle.decode(retour)
+                liste.append(self)            
+                with open("magasin.json","w") as f:
+                    f.write(jsonpickle.encode(liste))
+        else:
+            db.insert_magasin_game(self)
+        print(f"{self.name} à été ajouter avec succès")
     @staticmethod    
     def supprimer_jeux_M():
         if STORAGE_MODE == "json":
@@ -236,6 +272,15 @@ class Jeux_M(Jeux_B):
                 print("Choix invalide.")
     @staticmethod
     def afficher_jeux_M():
+        if STORAGE_MODE == "json":
+            with open("magasin.json", "r") as f:
+                liste = jsonpickle.decode(f.read())
+                for game in liste:
+                    print(game.name)
+        else:
+            for game in db.get_all_games("magasin"):
+                print(game)
+
         if STORAGE_MODE == "json":
             with open("magasin.json", "r") as f:
                 liste = jsonpickle.decode(f.read())
