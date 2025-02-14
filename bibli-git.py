@@ -356,6 +356,7 @@ while(True):
             print("3.afficher la liste de tous les jeux")
             print("4.afficher le détail d'un jeu")
             print("5.quitter")
+            print("6.jouer à un jeu")
             choice = input("Que voulez vous faire ? ")
 
             if choice == "1" :
@@ -376,6 +377,292 @@ while(True):
             if choice == "5" :
                 print("au revoir")
                 break
+
+
+
+            if choice == "6" :
+                from turtle import *
+                from random import choice
+                import time
+                from random import randint
+
+                ROUGE = "\033[31m"
+                JAUNE = "\033[33m"
+                VERT = "\033[32m"
+                RESET = "\033[0m"
+                while(True):
+                    print("1.wordle")
+                    print("2.morpion")
+                    print("3.blackjack")
+                    print("4.quitter")
+                    print("5.juste prix")
+
+                    choix = input("choisis un jeu : ")
+
+
+                    if choix == "1":
+                        valeurs = ["maison", "chien", "legume", "fruits", "ordinateur", "chaise", "table"]
+                        le_mot = choice(valeurs)
+                        print(f"Le mot fait {len(le_mot)} caractères")
+                        input("Appuyez sur Entrée pour démarrer ⏳")
+                        
+                        debut = time.time()
+                        
+                        while True:
+                            resultat = ""
+                            mot = input("Proposez un mot ou quittez avec 0 : ").lower()
+                        
+                            if mot == "0":
+                                print("Partie terminée.")
+                                break
+                            
+                            if len(mot) != len(le_mot):
+                                print(f"Le mot doit contenir {len(le_mot)} caractères")
+                                continue
+                            
+                            if mot == le_mot:
+                                for i, lettre in enumerate(mot):
+                                    if lettre == le_mot[i]:
+                                        resultat += VERT + lettre + RESET
+                                print(resultat)
+                                print("Bravo, vous avez trouvé le mot 🎉")
+                        
+                                input("Appuyez sur Entrée pour arrêter le chrono ⏸️")
+                                fin = time.time()
+                                temps_ecoule = round(fin - debut, 2)
+                                print(f"⏱️ Temps écoulé : {temps_ecoule} secondes")
+                                break
+                            else:
+                                for i, lettre in enumerate(mot):
+                                    if lettre == le_mot[i]:
+                                        resultat += VERT + lettre + RESET
+                                    elif lettre in le_mot:
+                                        resultat += JAUNE + lettre + RESET
+                                    else:
+                                        resultat += ROUGE + lettre + RESET
+                        
+                            print(resultat)
+                            if le_mot == mot:
+                                break
+                    if choix == "2":
+                        speed(0)
+                        pensize(3)
+
+                        for x in [-50, 50]:
+                            up()
+                            goto(x, 150)
+                            down()
+                            goto(x, -150)
+
+                        for y in [-50, 50]:
+                            up()
+                            goto(-150, y)
+                            down()
+                            goto(150, y)
+                        def cercle():
+                            up()
+                            rt(90)
+                            fd(40)
+                            lt(90)
+                            down()
+                            circle(40)
+                        def croix():
+                            rt(45)
+                            fd(50)
+                            bk(50)
+                            for i in range(3):
+                                lt(90)            
+                                fd(50)
+                                bk(50)           
+                            rt(45)
+                        positions = {
+                    "7": (-100, 100), "8": (0, 100), "9": (100, 100),
+                    "4": (-100, 0),   "5": (0, 0),   "6": (100, 0),
+                    "1": (-100, -100),"2": (0, -100),"3": (100, -100)}
+                        victoire = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["1", "4", "7"], ["2", "5", "8"], ["3", "6", "9"], ["1", "5", "9"], ["3", "5", "7"]]
+                        board = {key: None for key in positions}
+                        def gagnant():
+                            for combinaison in victoire:
+                                if board[combinaison[0]] and board[combinaison[0]] == board[combinaison[1]] == board[combinaison[2]]:
+                                    return board[combinaison[0]]
+                            return None
+                        while(True):
+                            hideturtle()
+                            choice_O = input("placez un cercle (1-9) ou quittez avec 10 : ")
+                            if choice_O in positions and board[choice_O] is None:
+                                up()
+                                goto(positions[choice_O])
+                                down()
+                                cercle()      
+                                board[choice_O] = 'O'
+                                if gagnant() :
+                                    print (f"Les {board[choice_O]} ont gagné")
+                                    break
+                                elif all(value is not None for value in board.values()):
+                                    print ( "match nul")
+                                    break
+                            elif choice_O == "10":
+                                break
+                            else :
+                                print("Choix invalide ou case déjà occupée. Essaie encore.")
+
+                            choice_X = input("placez une croix (1-9) ou quittez avec 10 : ")
+                            if choice_X in positions and board[choice_X] is None:
+                                up()
+                                goto(positions[choice_X])
+                                down()
+                                croix()    
+                                board[choice_X] = 'X'
+                                if gagnant() :
+                                    print (f"Les {board[choice_X]} ont gagné")
+                                    break
+                                elif all(value is not None for value in board.values()):
+                                    print ( "match nul")
+                                    break
+                            elif choice_X == "10":
+                                break
+                            else : 
+                                print("Choix invalide ou case déjà occupée. Essaie encore.")
+                        done()
+                    if choix == "3":
+                    
+                        valeurs = {
+                            "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
+                            "J": 10, "Q": 10, "K": 10, "A": 11  
+                        }
+
+                        def calculer_total(main):
+                            total = sum(valeurs[carte] for carte in main)
+                            as_count = main.count("A")
+                            while total > 21 and as_count:
+                                total -= 10
+                                as_count -= 1
+                            return total
+
+                        mainjoueur = [choice(list(valeurs.keys())), choice(list(valeurs.keys()))]
+                        maincroupier = [choice(list(valeurs.keys())), choice(list(valeurs.keys()))]
+
+                        print(f'🧑🃏 Vos deux cartes sont : {mainjoueur[0]} et {mainjoueur[1]}')
+                        print(f'🤵‍♂️🃏 Une des cartes du croupier est : {maincroupier[0]}')
+
+                        totalmainjoueur = calculer_total(mainjoueur)
+                        totalmaincroupier = calculer_total(maincroupier)
+
+                        while totalmainjoueur < 21:
+                            print('Que voulez-vous faire :')
+                            print('1 : Tirer')
+                            print('2 : Rester')
+                            tirerourester = int(input('Rentrez le chiffre de votre choix : '))
+
+                            if tirerourester == 1:
+                                nouvelle_carte = choice(list(valeurs.keys()))
+                                mainjoueur.append(nouvelle_carte)
+                                print(f'🃏 Votre nouvelle carte est : {nouvelle_carte}')
+                                time.sleep(3)
+                                print(f'🧑🃏 Vos cartes sont maintenant : {mainjoueur}')
+                                totalmainjoueur = calculer_total(mainjoueur)
+                                time.sleep(3)
+                                print(f'🧑🃏 Le total de vos cartes est : {totalmainjoueur}')
+                            else:
+                                print('Vous passez votre tour')
+                                break
+                            
+                        if totalmainjoueur > 21:
+                            print('💥 Vous avez dépassé 21 ! Vous perdez 😢')
+                            exit()
+
+                        print(f'🤵‍♂️🃏 Les deux cartes du croupier sont : {maincroupier[0]} et {maincroupier[1]}')
+                        time.sleep(3)
+                        while totalmaincroupier < 17:
+                            nouvelle_carte = choice(list(valeurs.keys()))
+                            maincroupier.append(nouvelle_carte)
+                            totalmaincroupier = calculer_total(maincroupier)
+                            print(f'🤵‍♂️🃏 Le croupier tire : {nouvelle_carte}')
+                            time.sleep(3)
+                            print(f'🤵‍♂️🃏 La main total du croupier est : {totalmaincroupier}')
+
+                        if totalmaincroupier > 21:
+                            time.sleep(3)
+                            print('🎉 Le croupier a dépassé 21, vous avez gagnez !')
+                        elif totalmainjoueur > totalmaincroupier:
+                            time.sleep(3)
+                            print('🎉 Vous avez gagnez !')
+                        elif totalmainjoueur < totalmaincroupier:
+                            time.sleep(3)
+                            print('😢 Le croupier a gagné.')
+                            time.sleep(3)
+                        else:
+                            print('😐 Égalité !')
+
+
+
+                    if choix == "4":
+                        break
+
+                    if choix == "5":
+                        print('1: Facile    🟩')
+                        print('2: Moyen     🟧')
+                        print('3: Difficile 🟥')
+                        ChoixDiffiPrix = int(input('quel est le numéro de ta difficulté ?'))
+                        if ChoixDiffiPrix == 1:
+                            print('Vous avez choisi Le Juste Prix 💰 en mode Facile 🟩')
+                            print('✨🎮Bon Jeu🎮✨')
+                            input("Appuyez sur Entrée pour démarrer ⏳")
+                            debut = time.time()
+                            prix = randint(10, 100)
+                            choix = int(input('quel est le prix ?'))
+                            while choix != prix:
+                            
+                                if choix < prix:
+                                    print('Votre estimation est trop basse')
+                    
+                                else:
+                                    print('Votre estimation est trop haute')
+                    
+                                choix = int(input('quel est la nouvelle estimation ?'))
+                        
+                        if ChoixDiffiPrix == 2:
+                            print('Vous avez choisi Le Juste Prix 💰 en mode Moyen 🟧 ')
+                            print('✨🎮Bon Jeu🎮✨')
+                            input("Appuyez sur Entrée pour démarrer ⏳")
+                            debut = time.time()
+                            prix = randint(10, 1000)
+                            choix = int(input('quel est le prix ?'))
+                            while choix != prix:
+                            
+                                if choix < prix:
+                                    print('Votre estimation est trop basse')
+                    
+                                else:
+                                    print('Votre estimation est trop haute')
+                    
+                                choix = int(input('quel est la nouvelle estimation ?'))
+                        
+                        if ChoixDiffiPrix == 3:
+                            print('Vous avez choisi Le Juste Prix 💰 en mode Difficile 🟥 ')
+                            print('✨🎮Bon Jeu🎮✨')
+                            input("Appuyez sur Entrée pour démarrer ⏳")
+                            debut = time.time()
+                            prix = randint(10, 10000)
+                            choix = int(input('quel est le prix ?'))
+                            while choix != prix:
+                            
+                                if choix < prix:
+                                    print('Votre estimation est trop basse')
+                    
+                                else:
+                                    print('Votre estimation est trop haute')
+                    
+                                choix = int(input('quel est la nouvelle estimation ?'))
+                    
+                        print('Bravo vous avez trouver le juste prix 🎉')
+                        input("Appuyez sur Entrée pour arrêter le chrono ⏸️")
+                        fin = time.time()
+                        temps_ecoule = round(fin - debut, 2)
+                        print(f"⏱️ Temps écoulé : {temps_ecoule} secondes")
+
+                    
+
     if menu == "2":
         while(True):
             print("1.Créer un jeu")
