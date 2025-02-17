@@ -1,7 +1,7 @@
 import jsonpickle
 import os
 import sqlite3
-from flask import Flask, request, jsonify 
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
@@ -51,7 +51,9 @@ class DatabaseManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
                 tag TEXT,
-                image TEXT
+                image TEXT,
+                note INTEGER CHECK (note BETWEEN 1 AND 5),
+                commentaire TEXT
             )
         """)
         self.cursor.execute("""
@@ -63,34 +65,63 @@ class DatabaseManager:
                 price REAL
             )
         """)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS game_ratings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                game_id INTEGER,
+                note INTEGER CHECK (note BETWEEN 1 AND 5),
+                commentaire TEXT,
+                FOREIGN KEY (game_id) REFERENCES game_library(id)
+            )
+        """)
         self.conn.commit()
 
     def insert_game(self, table, game):
         self.cursor.execute(f"INSERT INTO {table} (name, tag, image) VALUES (?, ?, ?)", (game.name, game.tag, game.image))
         self.conn.commit()
-
+    def insert_comm_note(self, table, game, notes, commentaires):
+        if not isinstance(notes, list):
+            notes = [notes]
+        if not isinstance(commentaires, list):
+            commentaires = [commentaires]
+        if len(notes) != len(commentaires):
+            raise ValueError("The number of notes must match the number of comments.")
+        for note, commentaire in zip(notes, commentaires):
+            self.cursor.execute(f"INSERT INTO {table} (game_id, note, commentaire) VALUES (?, ?, ?)", (game.id, note, commentaire))
+        self.conn.commit()
     def insert_game_HTTP(self, table, game):
         self.cursor.execute(f"INSERT INTO {table} (name, tag, image) VALUES (?, ?, ?)", (game["name"], game["tag"], game["image"]))
         self.conn.commit()
-
+    
     def insert_magasin_game(self, game):
         self.cursor.execute("INSERT INTO magasin (name, tag, image, price) VALUES (?, ?, ?, ?)", (game.name, game.tag, game.image, game.price))
         self.conn.commit()
-
     def get_all_games(self, table):
-        self.cursor.execute(f"SELECT name FROM {table}")
-        return [row[0] for row in self.cursor.fetchall()]
-
-    def get_game_details(self, table, index):
-        self.cursor.execute(f"SELECT name, tag , price FROM {table}")
+        self.cursor.execute(f"SELECT id, name FROM {table}")
+        return self.cursor.fetchall()
+    def get_game_details(self, table, game_id):
+        self.cursor.execute(f"SELECT name, tag FROM {table}")
         games = self.cursor.fetchall()
-        return games[index] if 0 <= index < len(games) else None
+        return games[game_id] if 0 <= game_id < len(games) else None
+    def get_comm(self, table, game_id):
+        self.cursor.execute(f"SELECT note, commentaire FROM {table} WHERE game_id = ?", (game_id,))
+        return self.cursor.fetchall()
+        
+    def get_game_details_comm(self, table, game_id):
+        self.cursor.execute(f"SELECT name, tag, image FROM {table} WHERE id = ?", (game_id,))
+        game = self.cursor.fetchone()
+        return game if game else None
+    
+    def get_game_details_M(self, table, game_id):
+        self.cursor.execute(f"SELECT name, tag, price FROM {table}")
+        games = self.cursor.fetchall()
+        return games[game_id] if 0 <= game_id < len(games) else None
 
-    def delete_game(self, table, index):
+    def delete_game(self, table, game_id):
         self.cursor.execute(f"SELECT id FROM {table}")
         ids = [row[0] for row in self.cursor.fetchall()]
-        if 0 <= index < len(ids):
-            self.cursor.execute(f"DELETE FROM {table} WHERE id = ?", (ids[index],))
+        if 0 <= game_id < len(ids):
+            self.cursor.execute(f"DELETE FROM {table} WHERE id = ?", (ids[game_id],))
             self.conn.commit()
             return True
         return False
@@ -105,10 +136,13 @@ def initialize_storage():
 STORAGE_MODE = initialize_storage()
 db = DatabaseManager() if STORAGE_MODE == "sqlite" else None
 class Jeux_B:
-    def __init__(self, name, tag, image):
+    def __init__(self,id,  name, tag, image):
+        self.id = id  
         self.name = name
         self.tag = tag
         self.image = image
+        self.note = []
+        self.commentaire = []
 
     def creer_jeux_B(self):
         if STORAGE_MODE == "json":
@@ -124,19 +158,7 @@ class Jeux_B:
         else:
             db.insert_game("game_library", self)      
         print(f"{self.name} à été ajouter avec succès")      
-        if STORAGE_MODE == "json":
-            if not os.path.exists("game_library.json"):
-                with open("game_library.json", "w") as f:
-                    f.write(jsonpickle.encode([]))
-            with open("game_library.json","r") as f:
-                retour = f.read()
-                liste = jsonpickle.decode(retour)
-                liste.append(self)            
-                with open("game_library.json","w") as f:
-                    f.write(jsonpickle.encode(liste))
-        else:
-            db.insert_game("game_library", self)      
-        print(f"{self.name} à été ajouter avec succès")      
+     
     @staticmethod    
     def supprimer_jeux_B():
         if STORAGE_MODE == "json":
@@ -176,15 +198,6 @@ class Jeux_B:
             for game in db.get_all_games("game_library"):
                 print(game)
 
-        if STORAGE_MODE == "json":
-            with open("game_library.json", "r") as f:
-                liste = jsonpickle.decode(f.read())
-                for game in liste:
-                    print(game.name)
-        else:
-            for game in db.get_all_games("game_library"):
-                print(game)
-
     @staticmethod
     def afficher_details_B():
         if STORAGE_MODE == "json":
@@ -195,22 +208,108 @@ class Jeux_B:
                 print (f"{index + 1}. {game.name}")
             choix = int(input("choisis un jeu pour afficher ces détails : "))-1
             if 0 <= choix < len(liste): 
-                print (liste[choix].name + " est un jeu " + liste[choix].tag)
+                jeu = liste[choix]
+                somme = sum(jeu.note)
+                moyenne = somme / len(jeu.note) if jeu.note else 0
+                print (f"{liste[choix].name} est un jeu {liste[choix].tag} avec une note de {moyenne}")
         else:
             library_games = db.get_all_games("game_library")
-            for index, game in enumerate(library_games):
-                print(f"{index + 1}. {game}")
-            choix = int(input("choisis un jeu pour afficher ces détails : "))-1
-            if 0 <= choix < len(library_games): 
-                details = db.get_game_details("game_library", choix)
+            for index, (game_id, game_name ) in enumerate(library_games):
+                print(f"{index + 1}. {game_name}")
+            choix = int(input("choisis un jeu pour afficher ces commentaires : "))-1
+            if 0 <= choix < len(library_games):
+                game_id, game_name = library_games[choix]
+                
+                details = db.get_game_details("game_library", choix)   
                 if details:
-                    db.get_game_details("game_library", choix)
-                    print(f"{details[0]} est un jeu {details[1]}")
+                    tag = details[1]      
+                avis = db.get_comm("game_ratings", game_id) or []       
+                notes = [game[0] for game in avis if isinstance(game[0], (int, float))]
+                moyenne = sum(notes) / len(notes) if notes else "Aucune note disponible"
+                print(f"{game_name} est un jeu {tag} avec une note moyenne de {moyenne:.2f}" if isinstance(moyenne, float) else f"{game_name} est un jeu {tag}, mais il n'a pas encore de notes.")
+            else:
+                print("Choix invalide.")
 
+            
+    def laisser_comm_note(self):
+        if STORAGE_MODE == "json":
+            with open("game_library.json","r") as f:
+                retour = f.read()
+                liste = jsonpickle.decode(retour)
+                for index, game in enumerate(liste):
+                    print (f"{index + 1}. {game.name}")
+                choix = int(input("choisis un jeu pour lui ajouter une note et un commentaire : "))-1
+                if 0 <= choix < len(liste):
+                    jeu = liste[choix]
+                    if not hasattr(jeu, "note"):
+                        jeu.note = []
+                    if not hasattr(jeu, "commentaire"):
+                        jeu.commentaire = []
+                    note = int(input("⭐ Note (sur 5) : "))
+                    commentaire = input("💬 Commentaire : ")
+                    jeu.note.append(note)
+                    jeu.commentaire.append(commentaire)
+
+                    with open("game_library.json","w") as f:
+                        f.write(jsonpickle.encode(liste))
+                        print(f"Avis ajouter avec succès")    
+                else:
+                    print("Choix invalide.")    
+        else:
+            library_games = db.get_all_games("game_library")
+            objets = []
+            for game_id, game_name in library_games:
+                game_details = db.get_game_details_comm("game_library", game_id)
+                if game_details:
+                    game_name, tag, image = game_details
+                    objet = Jeux_B(id=game_id, name=game_name, tag=tag, image=image)
+                    objets.append(objet)
+            for index, game in enumerate(objets, start=1):
+                print(f"{index}. {game.name}")
+            choix = int(input("choisis un jeu pour lui ajouter une note et un commentaire : "))-1
+            if 0 <= choix < len(objets):
+                game = objets[choix]
+                note = int(input("⭐ Note (sur 5) : "))
+                commentaire = input("💬 Commentaire : ")
+                game.note.append(note)
+                game.commentaire.append(commentaire)
+                db.insert_comm_note("game_ratings", game, game.note, game.commentaire)      
+                print(f"Avis ajouter avec succès")    
+            else:
+                print("Choix invalide.")
+    @staticmethod
+    def afficher_comm():
+        if STORAGE_MODE == "json":
+            with open("game_library.json","r") as f:
+                retour = f.read()
+                liste = jsonpickle.decode(retour)
+            for index, game in enumerate(liste):
+                print (f"{index + 1}. {game.name}")
+            choix = int(input("choisis un jeu pour afficher ces commentaires : "))-1
+            if 0 <= choix < len(liste): 
+                game = liste[choix]
+                print(f"\n📌 Avis sur {game.name} :")
+                for i in range(len(game.note)):
+                    print(f"⭐ {game.note[i]}/5 - 💬 {game.commentaire[i]}")
+        else:
+            library_games = db.get_all_games("game_library")
+            for index, (game_id, game_name ) in enumerate(library_games):
+                print(f"{index + 1}. {game_name}")
+            choix = int(input("choisis un jeu pour afficher ces commentaires : "))-1
+            if 0 <= choix < len(library_games):
+                game_id, game_name = library_games[choix]
+                avis = db.get_comm("game_ratings", game_id)
+                if avis:
+                    for note, commentaire in avis:
+                        print(f"⭐ {note}/5 - 💬 {commentaire}")
+                else:
+                    print("Aucun avis disponible pour ce jeu.")     
+            else:
+                print("Choix invalide.")
 
 class Jeux_M(Jeux_B):
-    def __init__(self, name, tag, image, price):
-        super().__init__(name, tag, image)
+    def __init__(self, id, name, tag, image, price):
+        super().__init__(id, name, tag, image)
         self.price = price
 
     def creer_jeux_M(self):
@@ -227,20 +326,7 @@ class Jeux_M(Jeux_B):
         else:
             db.insert_magasin_game(self)
         print(f"{self.name} à été ajouter avec succès")
-    def creer_jeux_M(self):
-        if STORAGE_MODE == "json":
-            if not os.path.exists("magasin.json"):
-                with open("magasin.json", "w") as f:
-                    f.write(jsonpickle.encode([]))         
-            with open("magasin.json","r") as f:
-                retour = f.read()
-                liste = jsonpickle.decode(retour)
-                liste.append(self)            
-                with open("magasin.json","w") as f:
-                    f.write(jsonpickle.encode(liste))
-        else:
-            db.insert_magasin_game(self)
-        print(f"{self.name} à été ajouter avec succès")
+
     @staticmethod    
     def supprimer_jeux_M():
         if STORAGE_MODE == "json":
@@ -263,13 +349,13 @@ class Jeux_M(Jeux_B):
                 print(f"{index + 1}. {game}")
             choix = int(input("choisis un jeu à supprimer : "))-1
             if 0 <= choix < len(magasin_games): 
-                details = db.get_game_details("magasin", choix)
+                details = db.get_game_details_M("magasin", choix )
                 if details:
-                    name_supp = Jeux_B(details[0], details[1], "Image par défaut") 
                     db.delete_game("magasin", choix)
                     print(f"{details[0]} à été supprimé avec succès")
             else:
                 print("Choix invalide.")
+
     @staticmethod
     def afficher_jeux_M():
         if STORAGE_MODE == "json":
@@ -281,14 +367,6 @@ class Jeux_M(Jeux_B):
             for game in db.get_all_games("magasin"):
                 print(game)
 
-        if STORAGE_MODE == "json":
-            with open("magasin.json", "r") as f:
-                liste = jsonpickle.decode(f.read())
-                for game in liste:
-                    print(game.name)
-        else:
-            for game in db.get_all_games("magasin"):
-                print(game)
 
     @staticmethod
     def afficher_details_M():
@@ -307,7 +385,7 @@ class Jeux_M(Jeux_B):
                 print(f"{index + 1}. {game}")
             choix = int(input("choisis un jeu pour afficher ces détails : "))-1
             if 0 <= choix < len(magasin_games): 
-                details = db.get_game_details("magasin", choix)
+                details = db.get_game_details_M("magasin", choix)
                 if details:
                     db.get_game_details("magasin", choix)
                     print(f"{details[0]} est un jeu {details[1]} qui coûtent {details[2]} €")
@@ -338,8 +416,8 @@ class Jeux_M(Jeux_B):
             if 0 <= choix < len(magasin_games):
                 details = db.get_game_details("magasin", choix)
                 if details:
-                    new_game = Jeux_B(details[0], details[1], "Image par défaut") 
-                    db.insert_game("magasin", new_game)
+                    new_game = Jeux_B(id, details[0], details[1], "Image par défaut") 
+                    db.insert_game("game_library", new_game)
                     print(f"{details[0]} a été acheté avec succès")
             else:
                 print("Choix invalide.")
@@ -355,12 +433,14 @@ while(True):
             print("2.Supprimer un jeu")
             print("3.afficher la liste de tous les jeux")
             print("4.afficher le détail d'un jeu")
-            print("5.quitter")
-            print("6.jouer à un jeu")
+            print("5.jouer à un jeu")
+            print("6.laisser un commentaire et une note")
+            print("7.afficher les commentaires")
+            print("8.quitter")
             choice = input("Que voulez vous faire ? ")
 
             if choice == "1" :
-                game = Jeux_B(input("name : "), input("tag : "), input("image : "))
+                game = Jeux_B("", input("name : "), input("tag : "), input("image : "))
                 game.creer_jeux_B()
                 
             if choice == "2" :
@@ -374,13 +454,20 @@ while(True):
                 Jeux_B.afficher_details_B()
 
 
-            if choice == "5" :
+            if choice == "6" :
+                game = Jeux_B("", "", "", "")
+                game.laisser_comm_note()
+
+            if choice == "7":
+                Jeux_B.afficher_comm()
+
+            if choice == "8" :
                 print("au revoir")
                 break
 
 
 
-            if choice == "6" :
+            if choice == "5" :
                 from turtle import *
                 from random import choice
                 import time
@@ -394,8 +481,8 @@ while(True):
                     print("1.wordle")
                     print("2.morpion")
                     print("3.blackjack")
-                    print("4.quitter")
-                    print("5.juste prix")
+                    print("4.juste prix")
+                    print("5.quitter")
 
                     choix = input("choisis un jeu : ")
 
@@ -488,41 +575,47 @@ while(True):
                             return None
                         while(True):
                             hideturtle()
-                            choice_O = input("placez un cercle (1-9) ou quittez avec 10 : ")
-                            if choice_O in positions and board[choice_O] is None:
-                                up()
-                                goto(positions[choice_O])
-                                down()
-                                cercle()      
-                                board[choice_O] = 'O'
-                                if gagnant() :
-                                    print (f"Les {board[choice_O]} ont gagné")
+                            while(True):
+                                choice_O = input("placez un cercle (1-9) ou quittez avec 10 : ")
+                                if choice_O in positions and board[choice_O] is None:
+                                    up()
+                                    goto(positions[choice_O])
+                                    down()
+                                    cercle()      
+                                    board[choice_O] = 'O'
                                     break
-                                elif all(value is not None for value in board.values()):
-                                    print ( "match nul")
-                                    break
-                            elif choice_O == "10":
+                                if choice_O == "10":
+                                    done()
+                                    exit()
+                                else :
+                                    print("Choix invalide ou case déjà occupée. Essaie encore.")
+                                    
+                            if gagnant() :
+                                print (f"Les {board[choice_O]} ont gagné")
                                 break
-                            else :
-                                print("Choix invalide ou case déjà occupée. Essaie encore.")
-
-                            choice_X = input("placez une croix (1-9) ou quittez avec 10 : ")
-                            if choice_X in positions and board[choice_X] is None:
-                                up()
-                                goto(positions[choice_X])
-                                down()
-                                croix()    
-                                board[choice_X] = 'X'
-                                if gagnant() :
-                                    print (f"Les {board[choice_X]} ont gagné")
-                                    break
-                                elif all(value is not None for value in board.values()):
-                                    print ( "match nul")
-                                    break
-                            elif choice_X == "10":
+                            elif all(value is not None for value in board.values()):
+                                print ( "match nul")
                                 break
-                            else : 
-                                print("Choix invalide ou case déjà occupée. Essaie encore.")
+                            while(True):
+                                choice_X = input("placez une croix (1-9) ou quittez avec 10 : ")
+                                if choice_X in positions and board[choice_X] is None:
+                                    up()
+                                    goto(positions[choice_X])
+                                    down()
+                                    croix()    
+                                    board[choice_X] = 'X'
+                                    break  
+                                if choice_X == "10":
+                                    done()
+                                    exit()
+                                else : 
+                                    print("Choix invalide ou case déjà occupée. Essaie encore.")
+                            if gagnant() :
+                                print (f"Les {board[choice_X]} ont gagné")
+                                break
+                            elif all(value is not None for value in board.values()):
+                                print ( "match nul")
+                                break
                         done()
                     if choix == "3":
                     
@@ -596,10 +689,10 @@ while(True):
 
 
 
-                    if choix == "4":
+                    if choix == "5":
                         break
 
-                    if choix == "5":
+                    if choix == "4":
                         print('1: Facile    🟩')
                         print('2: Moyen     🟧')
                         print('3: Difficile 🟥')
@@ -646,10 +739,8 @@ while(True):
                             prix = randint(10, 10000)
                             choix = int(input('quel est le prix ?'))
                             while choix != prix:
-                            
                                 if choix < prix:
                                     print('Votre estimation est trop basse')
-                    
                                 else:
                                     print('Votre estimation est trop haute')
                     
@@ -674,7 +765,7 @@ while(True):
             choice = input("Que voulez vous faire ? ")
 
             if choice == "1" :
-                game = Jeux_M(input("name : "), input("tag : "), input("image : "), float(input("price : ")))
+                game = Jeux_M("", input("name : "), input("tag : "), input("image : "), float(input("price : ")))
                 game.creer_jeux_M()
             if choice == "2" :
                 Jeux_M.supprimer_jeux_M()
